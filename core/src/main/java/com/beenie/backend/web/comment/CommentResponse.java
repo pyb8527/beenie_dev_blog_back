@@ -56,7 +56,7 @@ public record CommentResponse(
                 replies);
     }
 
-    private static CommentResponse fromLeaf(Comment comment) {
+    public static CommentResponse fromLeaf(Comment comment) {
         return new CommentResponse(
                 comment.getId(),
                 comment.isDeleted() ? null : comment.getAuthorName(),

@@ -31,19 +31,19 @@ public class CommentController {
     }
 
     @PostMapping("/api/posts/{postId}/comments")
-    public ApiResponse<Void> create(@PathVariable Long postId,
+    public ApiResponse<CommentResponse> create(@PathVariable Long postId,
                                      @Valid @RequestBody CommentCreateRequest request,
                                      @AuthenticationPrincipal AuthPrincipal principal) {
-        commentService.create(postId, principal.userId(), request.content(), request.parentId());
-        return ApiResponse.empty();
+        Comment created = commentService.create(postId, principal.userId(), request.content(), request.parentId());
+        return ApiResponse.success(CommentResponse.fromLeaf(created));
     }
 
     @PutMapping("/api/comments/{id}")
-    public ApiResponse<Void> update(@PathVariable Long id,
+    public ApiResponse<CommentResponse> update(@PathVariable Long id,
                                      @Valid @RequestBody CommentUpdateRequest request,
                                      @AuthenticationPrincipal AuthPrincipal principal) {
-        commentService.update(id, principal.userId(), principal.isAdmin(), request.content());
-        return ApiResponse.empty();
+        Comment updated = commentService.update(id, principal.userId(), principal.isAdmin(), request.content());
+        return ApiResponse.success(CommentResponse.fromLeaf(updated));
     }
 
     @DeleteMapping("/api/comments/{id}")

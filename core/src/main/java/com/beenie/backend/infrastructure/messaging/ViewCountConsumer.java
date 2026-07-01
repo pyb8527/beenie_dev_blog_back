@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 조회수 증가 이벤트를 소비하여 DB(posts.view_count)에 비동기로 반영한다.
@@ -18,6 +19,7 @@ public class ViewCountConsumer {
 
     private final PostRepository postRepository;
 
+    @Transactional
     @RabbitListener(queues = RabbitMqConfig.VIEW_COUNT_QUEUE)
     public void onViewCountMessage(ViewCountMessage message) {
         try {

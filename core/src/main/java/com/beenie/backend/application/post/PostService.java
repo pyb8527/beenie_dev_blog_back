@@ -40,8 +40,6 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class PostService {
 
-    private static final String DEFAULT_THUMBNAIL = "/images/default-thumbnail.png";
-
     private final PostRepository postRepository;
     private final PostSearchRepository postSearchRepository;
     private final CategoryRepository categoryRepository;
@@ -259,8 +257,7 @@ public class PostService {
         if (requested != null && !requested.isBlank()) {
             return requested;
         }
-        String extracted = markdownProcessor.extractFirstImageUrl(markdownContent);
-        return extracted != null ? extracted : DEFAULT_THUMBNAIL;
+        return markdownProcessor.extractFirstImageUrl(markdownContent);
     }
 
     private void writeCache(String key, PageResponse<PostSummary> value) {

@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
 
 @Slf4j
 @Component
@@ -40,6 +41,32 @@ public class S3FileStorageAdapter implements FileStorageRepository {
             }
         } catch (Exception e) {
             log.warn("S3 연결 확인 실패 (bucket={}): {}. 파일 업로드 기능이 정상 동작하지 않을 수 있습니다.", bucketName, e.getMessage());
+        }
+        applyPublicReadPolicy();
+    }
+
+    /**
+     * 버킷은 기본적으로 비공개라 업로드는 성공해도 반환된 공개 URL(GET)이 403이 난다.
+     * 블로그 썸네일/본문 이미지는 익명 조회가 가능해야 하므로 GetObject만 공개로 허용한다.
+     */
+    private void applyPublicReadPolicy() {
+        String policy = """
+                {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Principal": {"AWS": ["*"]},
+                      "Action": ["s3:GetObject"],
+                      "Resource": ["arn:aws:s3:::%s/*"]
+                    }
+                  ]
+                }
+                """.formatted(bucketName);
+        try {
+            s3Client.putBucketPolicy(PutBucketPolicyRequest.builder().bucket(bucketName).policy(policy).build());
+        } catch (Exception e) {
+            log.warn("S3 버킷 공개 읽기 정책 적용 실패 (bucket={}): {}", bucketName, e.getMessage());
         }
     }
 

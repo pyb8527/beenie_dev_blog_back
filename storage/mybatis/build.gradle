@@ -2,6 +2,9 @@ dependencies {
     api project(':support:common')
     api project(':support:exception')
 
-    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    api 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
     runtimeOnly 'com.mysql:mysql-connector-j'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 }

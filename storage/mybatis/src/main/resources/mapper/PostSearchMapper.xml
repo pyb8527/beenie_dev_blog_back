@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.beenie.backend.storage.mybatis.post.PostSearchMapper">
+
+    <sql id="baseSelect">
+        SELECT
+            p.id                AS id,
+            p.title             AS title,
+            p.slug              AS slug,
+            p.summary           AS summary,
+            p.thumbnail_url     AS thumbnailUrl,
+            p.status            AS status,
+            p.view_count        AS viewCount,
+            p.like_count        AS likeCount,
+            p.bookmark_count    AS bookmarkCount,
+            p.category_id       AS categoryId,
+            c.name              AS categoryName,
+            c.slug              AS categorySlug,
+            GROUP_CONCAT(DISTINCT t.name ORDER BY t.name SEPARATOR ',') AS tagsCsv,
+            p.created_at        AS createdAt,
+            p.updated_at        AS updatedAt
+        FROM posts p
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN post_tags pt ON pt.post_id = p.id
+        LEFT JOIN tags t ON t.id = pt.tag_id
+    </sql>
+
+    <select id="findPublicList" resultType="com.beenie.backend.storage.mybatis.post.PostSummaryRow">
+        <include refid="baseSelect"/>
+        WHERE p.status = 'PUBLIC' AND p.deleted_at IS NULL
+        <if test="p.categorySlug != null and p.categorySlug != ''">
+            AND c.slug = #{p.categorySlug}
+        </if>
+        <if test="p.tagName != null and p.tagName != ''">
+            AND p.id IN (
+                SELECT pt2.post_id FROM post_tags pt2 JOIN tags t2 ON t2.id = pt2.tag_id WHERE t2.name = #{p.tagName}
+            )
+        </if>
+        GROUP BY p.id, c.name, c.slug
+        <choose>
+            <when test="p.sort == 'POPULAR'">ORDER BY p.view_count DESC, p.id DESC</when>
+            <when test="p.sort == 'LIKED'">ORDER BY p.like_count DESC, p.id DESC</when>
+            <otherwise>ORDER BY p.created_at DESC, p.id DESC</otherwise>
+        </choose>
+        LIMIT #{p.limit} OFFSET #{p.offset}
+    </select>
+
+    <select id="countPublicList" resultType="long">
+        SELECT COUNT(DISTINCT p.id)
+        FROM posts p
+        LEFT JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'PUBLIC' AND p.deleted_at IS NULL
+        <if test="p.categorySlug != null and p.categorySlug != ''">
+            AND c.slug = #{p.categorySlug}
+        </if>
+        <if test="p.tagName != null and p.tagName != ''">
+            AND p.id IN (
+                SELECT pt2.post_id FROM post_tags pt2 JOIN tags t2 ON t2.id = pt2.tag_id WHERE t2.name = #{p.tagName}
+            )
+        </if>
+    </select>
+
+    <select id="findAdminList" resultType="com.beenie.backend.storage.mybatis.post.PostSummaryRow">
+        <include refid="baseSelect"/>
+        WHERE p.deleted_at IS NULL
+        <if test="p.status != null and p.status != ''">
+            AND p.status = #{p.status}
+        </if>
+        <if test="p.categoryId != null">
+            AND p.category_id = #{p.categoryId}
+        </if>
+        <if test="p.tagName != null and p.tagName != ''">
+            AND p.id IN (
+                SELECT pt2.post_id FROM post_tags pt2 JOIN tags t2 ON t2.id = pt2.tag_id WHERE t2.name = #{p.tagName}
+            )
+        </if>
+        <if test="p.dateFrom != null">
+            AND p.created_at &gt;= #{p.dateFrom}
+        </if>
+        <if test="p.dateTo != null">
+            AND p.created_at &lt; DATE_ADD(#{p.dateTo}, INTERVAL 1 DAY)
+        </if>
+        GROUP BY p.id, c.name, c.slug
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT #{p.limit} OFFSET #{p.offset}
+    </select>
+
+    <select id="countAdminList" resultType="long">
+        SELECT COUNT(DISTINCT p.id)
+        FROM posts p
+        WHERE p.deleted_at IS NULL
+        <if test="p.status != null and p.status != ''">
+            AND p.status = #{p.status}
+        </if>
+        <if test="p.categoryId != null">
+            AND p.category_id = #{p.categoryId}
+        </if>
+        <if test="p.tagName != null and p.tagName != ''">
+            AND p.id IN (
+                SELECT pt2.post_id FROM post_tags pt2 JOIN tags t2 ON t2.id = pt2.tag_id WHERE t2.name = #{p.tagName}
+            )
+        </if>
+        <if test="p.dateFrom != null">
+            AND p.created_at &gt;= #{p.dateFrom}
+        </if>
+        <if test="p.dateTo != null">
+            AND p.created_at &lt; DATE_ADD(#{p.dateTo}, INTERVAL 1 DAY)
+        </if>
+    </select>
+
+    <select id="searchPublic" resultType="com.beenie.backend.storage.mybatis.post.PostSummaryRow">
+        <include refid="baseSelect"/>
+        WHERE p.status = 'PUBLIC' AND p.deleted_at IS NULL
+        AND (
+            MATCH(p.title, p.content) AGAINST(#{keyword} IN NATURAL LANGUAGE MODE)
+            OR p.id IN (SELECT pt3.post_id FROM post_tags pt3 JOIN tags t3 ON t3.id = pt3.tag_id WHERE t3.name LIKE CONCAT('%', #{keyword}, '%'))
+        )
+        GROUP BY p.id, c.name, c.slug
+        ORDER BY MATCH(p.title, p.content) AGAINST(#{keyword} IN NATURAL LANGUAGE MODE) DESC, p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countSearchPublic" resultType="long">
+        SELECT COUNT(DISTINCT p.id)
+        FROM posts p
+        WHERE p.status = 'PUBLIC' AND p.deleted_at IS NULL
+        AND (
+            MATCH(p.title, p.content) AGAINST(#{keyword} IN NATURAL LANGUAGE MODE)
+            OR p.id IN (SELECT pt3.post_id FROM post_tags pt3 JOIN tags t3 ON t3.id = pt3.tag_id WHERE t3.name LIKE CONCAT('%', #{keyword}, '%'))
+        )
+    </select>
+
+    <select id="findPreviousPublic" resultType="com.beenie.backend.storage.mybatis.post.PostNavRow">
+        SELECT id, title, slug FROM posts
+        WHERE status = 'PUBLIC' AND deleted_at IS NULL
+          AND id != #{postId}
+          AND created_at &lt; #{createdAt}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="findNextPublic" resultType="com.beenie.backend.storage.mybatis.post.PostNavRow">
+        SELECT id, title, slug FROM posts
+        WHERE status = 'PUBLIC' AND deleted_at IS NULL
+          AND id != #{postId}
+          AND created_at &gt; #{createdAt}
+        ORDER BY created_at ASC
+        LIMIT 1
+    </select>
+
+    <select id="findBookmarkedByUser" resultType="com.beenie.backend.storage.mybatis.post.PostSummaryRow">
+        SELECT
+            p.id                AS id,
+            p.title             AS title,
+            p.slug              AS slug,
+            p.summary           AS summary,
+            p.thumbnail_url     AS thumbnailUrl,
+            p.status            AS status,
+            p.view_count        AS viewCount,
+            p.like_count        AS likeCount,
+            p.bookmark_count    AS bookmarkCount,
+            p.category_id       AS categoryId,
+            c.name              AS categoryName,
+            c.slug              AS categorySlug,
+            GROUP_CONCAT(DISTINCT t.name ORDER BY t.name SEPARATOR ',') AS tagsCsv,
+            p.created_at        AS createdAt,
+            p.updated_at        AS updatedAt
+        FROM post_bookmarks b
+        JOIN posts p ON p.id = b.post_id
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN post_tags pt ON pt.post_id = p.id
+        LEFT JOIN tags t ON t.id = pt.tag_id
+        WHERE b.user_id = #{userId} AND p.deleted_at IS NULL
+        GROUP BY p.id, c.name, c.slug, b.created_at
+        ORDER BY b.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countBookmarkedByUser" resultType="long">
+        SELECT COUNT(*)
+        FROM post_bookmarks b
+        JOIN posts p ON p.id = b.post_id
+        WHERE b.user_id = #{userId} AND p.deleted_at IS NULL
+    </select>
+
+</mapper>

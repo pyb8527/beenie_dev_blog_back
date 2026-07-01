@@ -45,9 +45,11 @@
 ## 2. 계층 책임
 
 ### core/web
-- REST Controller, 요청/응답 DTO, 전역 예외 핸들러(`@RestControllerAdvice`)
+- REST Controller, 요청/응답 DTO, 전역 예외 핸들러(`GlobalExceptionHandler`, `@RestControllerAdvice`)
 - 외부 요청을 받아 `application` 계층의 UseCase를 호출하는 역할만 수행
 - 비즈니스 로직을 포함하지 않는다
+- 모든 응답은 `support:common`의 `ApiResponse<T>`로 감싼다. 자세한 컨벤션은
+  [API_CONVENTION.md](API_CONVENTION.md) 참고
 
 ### core/application
 - UseCase(또는 Service) 구현체와 트랜잭션 경계(`@Transactional`)
@@ -71,6 +73,8 @@
 
 ### support/*
 - 어떤 계층에서도 참조할 수 있는 순수 유틸리티/공통 예외/로깅 설정
+- `support:common`: 공통 응답 포맷(`ApiResponse<T>`) 등
+- `support:exception`: 공통 예외(`BusinessException`)와 에러 코드(`ErrorCode`)
 - 비즈니스 로직이나 프레임워크 종속 코드를 포함하지 않는다
 
 ## 3. 의존 방향 원칙

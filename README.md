@@ -108,6 +108,15 @@ docker compose -f docker/docker-compose.yml up -d
 붙지 않았기 때문에 그 외 API는 인증 수단 부재로 403이 반환됩니다. 실제 인증 방식을 `infrastructure`에 구현하면서
 허용 경로/인증 로직을 함께 채워나가면 됩니다.
 
+## 공통 API 응답 / 예외 처리
+
+- `support:common`의 `ApiResponse<T>`가 모든 응답을 `{ success, data, error }` 형태로 감쌉니다.
+- `support:exception`의 `ErrorCode`(에러코드/HTTP 상태/메시지)와 `BusinessException`으로 도메인/서비스단
+  예외를 표현합니다.
+- `core/web`의 `GlobalExceptionHandler`가 `BusinessException`, `@Valid` 검증 실패,
+  그 외 예상치 못한 예외를 모두 `ApiResponse` 형태의 에러 응답으로 변환합니다.
+- 사용법과 응답 예시는 [docs/API_CONVENTION.md](docs/API_CONVENTION.md) 참고.
+
 ## 아키텍처 검증
 
 `core/src/test/.../architecture/LayeredArchitectureTest`가 ArchUnit으로 계층 의존 방향
@@ -138,3 +147,4 @@ docker compose -f docker/docker-compose.yml up -d
 
 - [아키텍처 구성도](docs/ARCHITECTURE.md)
 - [멀티모듈 가이드](docs/MULTI_MODULE_GUIDE.md)
+- [공통 API 응답 / 예외 처리 컨벤션](docs/API_CONVENTION.md)

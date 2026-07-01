@@ -50,6 +50,7 @@ backend-init
 | API 문서 | springdoc-openapi (Swagger UI) |
 | Monitoring | Spring Boot Actuator |
 | Architecture Test | ArchUnit |
+| Env 관리 | spring-dotenv (.env) |
 | Container | Docker / Docker Compose |
 
 > 실제 도입 여부에 맞게 표를 업데이트하세요.
@@ -100,6 +101,14 @@ docker compose -f docker/docker-compose.yml up -d
 | `local` | 로컬 개발 (기본값) | `docker/docker-compose.yml` 인프라 사용, `show-sql: true` |
 | `dev` | 개발 서버 배포 | DB/Redis/RabbitMQ 접속 정보를 환경변수로 주입 |
 | `prod` | 운영 배포 | Swagger UI 비활성화, health 상세 정보 비노출 |
+
+`dev`/`prod`에서 쓰는 `${DB_URL}` 같은 값은 OS 환경변수이거나 프로젝트 루트의 `.env` 파일에서
+채워진다(`spring-dotenv`가 부팅 시 자동으로 읽어온다). `local`은 값이 이미 하드코딩돼 있어 `.env`가 필요 없다.
+
+```bash
+cp .env.example .env   # 값 채우고 사용, .env는 git에 커밋되지 않는다
+./gradlew :core:bootRun --args='--spring.profiles.active=dev'
+```
 
 ## 보안 기본값
 

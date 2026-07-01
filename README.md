@@ -41,11 +41,15 @@ backend-init
 | 영역 | 기술 |
 |---|---|
 | Language | Java 21 |
-| Framework | Spring Boot 3.x |
+| Framework | Spring Boot 3.3.2 |
 | Build | Gradle (Multi-Module) |
 | Persistence | JPA(Hibernate), MyBatis |
+| Migration | Flyway |
 | Cache/Session | Redis |
 | Messaging | RabbitMQ |
+| API 문서 | springdoc-openapi (Swagger UI) |
+| Monitoring | Spring Boot Actuator |
+| Architecture Test | ArchUnit |
 | Container | Docker / Docker Compose |
 
 > 실제 도입 여부에 맞게 표를 업데이트하세요.
@@ -63,6 +67,8 @@ backend-init
 docker compose -f docker/docker-compose.yml up -d
 ```
 
+> 호스트에 이미 MySQL(3306)이 떠 있는 경우와 충돌하지 않도록 MySQL은 `3307:3306`으로 매핑되어 있습니다.
+
 ### 빌드
 
 ```bash
@@ -74,6 +80,39 @@ docker compose -f docker/docker-compose.yml up -d
 ```bash
 ./gradlew :core:bootRun
 ```
+
+기본 활성 프로필은 `local`이며, `core/src/main/resources/application-local.yml`이 로컬 docker-compose 인프라를 바라보도록 설정되어 있습니다.
+
+### 실행 후 확인
+
+| 항목 | URL |
+|---|---|
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| OpenAPI 문서 | http://localhost:8080/v3/api-docs |
+| Health Check | http://localhost:8080/actuator/health |
+
+첫 부팅 시 `storage/jpa`의 `src/main/resources/db/migration` 아래 Flyway 마이그레이션이 자동 적용됩니다.
+
+## 프로필
+
+| 프로필 | 용도 | 비고 |
+|---|---|---|
+| `local` | 로컬 개발 (기본값) | `docker/docker-compose.yml` 인프라 사용, `show-sql: true` |
+| `dev` | 개발 서버 배포 | DB/Redis/RabbitMQ 접속 정보를 환경변수로 주입 |
+| `prod` | 운영 배포 | Swagger UI 비활성화, health 상세 정보 비노출 |
+
+## 보안 기본값
+
+`core/infrastructure/security/SecurityConfig`는 `/swagger-ui/**`, `/v3/api-docs/**`, `/actuator/health/**`만
+인증 없이 허용하고 나머지 요청은 `authenticated()`로 막아둔 상태입니다. 아직 로그인 메커니즘(JWT/GitHub OAuth 등)이
+붙지 않았기 때문에 그 외 API는 인증 수단 부재로 403이 반환됩니다. 실제 인증 방식을 `infrastructure`에 구현하면서
+허용 경로/인증 로직을 함께 채워나가면 됩니다.
+
+## 아키텍처 검증
+
+`core/src/test/.../architecture/LayeredArchitectureTest`가 ArchUnit으로 계층 의존 방향
+(`web → application → domain ← infrastructure ← storage`)을 테스트 단계에서 강제합니다.
+규칙을 위반하는 의존성이 추가되면 `./gradlew :core:test`가 실패합니다.
 
 ## 모듈 개요
 

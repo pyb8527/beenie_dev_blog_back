@@ -1,0 +1,1 @@
+-- Flyway baseline migration. Add table definitions here as domain entities are introduced.

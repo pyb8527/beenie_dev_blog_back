@@ -17,7 +17,7 @@
 ## 2. settings.gradle
 
 ```groovy
-rootProject.name = 'backend-init'
+rootProject.name = 'beenie_dev_blog_back'
 
 include 'core'
 

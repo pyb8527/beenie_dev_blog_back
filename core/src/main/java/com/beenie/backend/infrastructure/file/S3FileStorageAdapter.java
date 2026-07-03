@@ -29,6 +29,14 @@ public class S3FileStorageAdapter implements FileStorageRepository {
     @Value("${file.s3.endpoint}")
     private String endpoint;
 
+    /**
+     * 브라우저가 접근할 공개 URL의 베이스. 도커 환경에서는 서버가 접속하는 endpoint(예: http://minio:9000)와
+     * 브라우저가 접근 가능한 주소(예: http://localhost:9000, 운영은 실제 도메인/CDN)가 다르므로 분리한다.
+     * 미설정 시 endpoint로 폴백한다.
+     */
+    @Value("${file.s3.public-url:${file.s3.endpoint}}")
+    private String publicUrl;
+
     @PostConstruct
     void ensureBucketExists() {
         try {
@@ -80,6 +88,7 @@ public class S3FileStorageAdapter implements FileStorageRepository {
             log.error("S3 업로드 실패 key={}", key, e);
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
-        return endpoint + "/" + bucketName + "/" + key;
+        String base = (publicUrl == null || publicUrl.isBlank()) ? endpoint : publicUrl;
+        return base.replaceAll("/+$", "") + "/" + bucketName + "/" + key;
     }
 }

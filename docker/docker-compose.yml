@@ -1,31 +1,46 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: backend-init-mysql
+    container_name: beenie-dev-blog-back-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: backend_init
+      MYSQL_DATABASE: beenie_dev_blog_back
     ports:
       - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
-    container_name: backend-init-redis
+    container_name: beenie-dev-blog-back-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: backend-init-rabbitmq
+    container_name: beenie-dev-blog-back-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   minio:
     image: minio/minio:latest
-    container_name: backend-init-minio
+    container_name: beenie-dev-blog-back-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -35,6 +50,69 @@ services:
       - "9001:9001"
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: beenie-dev-blog-back-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    # 실제 시크릿(JWT_SECRET, GITHUB_CLIENT_SECRET)은 gitignore된 docker/.env 에서 주입 (커밋 금지)
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+      DB_URL: jdbc:mysql://mysql:3306/beenie_dev_blog_back
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+
+      # JWT_SECRET 은 docker/.env 에서 주입 (HS256용 32자 이상 시크릿)
+      JWT_ACCESS_EXPIRATION: 1800000
+      JWT_REFRESH_EXPIRATION: 1209600000
+
+      # GITHUB_CLIENT_ID 는 공개값(OAuth URL에 노출됨). GITHUB_CLIENT_SECRET 은 docker/.env 에서 주입.
+      GITHUB_CLIENT_ID: Iv23livPiMfXfLGPvW1S
+      ALLOWED_GITHUB_ID: "77624737"
+
+      S3_ENDPOINT: http://minio:9000
+      # 서버는 minio:9000으로 접속, 브라우저가 접근할 이미지 URL은 공개 도메인(cdn 터널)
+      # 로컬 전용: http://localhost:9000
+      S3_PUBLIC_URL: https://cdn.weenie-beenie.net
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET_NAME: beenie-blog
+      S3_REGION: us-east-1
+
+      # 공개(터널) 도메인. 로컬 전용은 http://localhost:8080 / http://localhost:3000
+      APP_BASE_URL: https://api.weenie-beenie.net
+      FRONTEND_URL: https://blog.weenie-beenie.net
+      # 서브도메인 간 인증 쿠키 공유 + HTTPS 전송
+      APP_COOKIE_SECURE: "true"
+      APP_COOKIE_DOMAIN: .weenie-beenie.net
+    ports:
+      - "8080:8080"
 
 volumes:
   mysql-data:

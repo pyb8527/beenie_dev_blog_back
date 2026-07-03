@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3307/backend_init
+    url: jdbc:mysql://localhost:3307/beenie_dev_blog_back
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver

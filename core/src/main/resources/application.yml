@@ -1,6 +1,6 @@
 spring:
   application:
-    name: backend-init
+    name: beenie_dev_blog_back
   profiles:
     active: local
   servlet:

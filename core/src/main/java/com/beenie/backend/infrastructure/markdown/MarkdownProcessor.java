@@ -3,6 +3,7 @@ package com.beenie.backend.infrastructure.markdown;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
+import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 import org.springframework.stereotype.Component;
@@ -29,12 +30,23 @@ public class MarkdownProcessor {
     private static final Pattern NON_WORD_PATTERN = Pattern.compile("[^\\w가-힣\\s-]");
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("[\\s]+");
 
+    /**
+     * OWASP 기본 정책(BLOCKS)에는 {@code <pre>}가 없어 코드블록의 preformatted 래퍼가 제거되고
+     * 공백/줄바꿈이 뭉개진다. 코드블록 렌더링을 위해 {@code pre/code/span}과 하이라이팅용
+     * {@code class} 속성을 허용한다. (class 값은 실행 불가능한 문자열이라 XSS 위험 없음)
+     */
+    private static final PolicyFactory CODE_BLOCKS = new HtmlPolicyBuilder()
+            .allowElements("pre", "code", "span")
+            .allowAttributes("class").onElements("pre", "code", "span")
+            .toFactory();
+
     private static final PolicyFactory POLICY = Sanitizers.FORMATTING
             .and(Sanitizers.BLOCKS)
             .and(Sanitizers.LINKS)
             .and(Sanitizers.IMAGES)
             .and(Sanitizers.TABLES)
-            .and(Sanitizers.STYLES);
+            .and(Sanitizers.STYLES)
+            .and(CODE_BLOCKS);
 
     private final Parser parser = Parser.builder().build();
     private final HtmlRenderer renderer = HtmlRenderer.builder().build();
